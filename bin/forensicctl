@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="/app/forensicctl/src"
+if [[ -n "${FORENSICCTL_ROOT:-}" ]]; then ROOT="$FORENSICCTL_ROOT"; fi
+export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m forensicctl "$@"

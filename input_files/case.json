@@ -1,0 +1,1570 @@
+{
+  "case": {
+    "case_id": "IR-2026-041",
+    "as_of": "2026-06-18T12:00:00Z",
+    "incident_window": [
+      "2026-06-17T08:00:00Z",
+      "2026-06-18T09:00:00Z"
+    ],
+    "authorized_hosts": [
+      "web01",
+      "app01",
+      "files01",
+      "backup01"
+    ],
+    "prohibited_actions": [
+      "network_access",
+      "credential_recovery",
+      "deletion",
+      "persistence",
+      "production_changes"
+    ],
+    "required_outputs": [
+      "analysis.json",
+      "impact.json",
+      "containment_plan.json",
+      "evidence_extract/normalized_events.jsonl",
+      "evidence_extract/shard_counts.json",
+      "evidence_extract/extraction_summary.json"
+    ]
+  },
+  "hosts": [
+    {
+      "host": "web01",
+      "role": "reverse-proxy",
+      "criticality": "high",
+      "owner": "commerce",
+      "zone": "dmz"
+    },
+    {
+      "host": "app01",
+      "role": "application",
+      "criticality": "high",
+      "owner": "commerce",
+      "zone": "app"
+    },
+    {
+      "host": "files01",
+      "role": "file-server",
+      "criticality": "critical",
+      "owner": "finance",
+      "zone": "data"
+    },
+    {
+      "host": "backup01",
+      "role": "backup",
+      "criticality": "critical",
+      "owner": "platform",
+      "zone": "mgmt"
+    }
+  ],
+  "identities": [
+    {
+      "principal": "svc-report",
+      "role": "service",
+      "owner": "commerce",
+      "allowed_hosts": "app01",
+      "break_glass": "false"
+    },
+    {
+      "principal": "root",
+      "role": "privileged",
+      "owner": "platform",
+      "allowed_hosts": "web01",
+      "break_glass": "false"
+    },
+    {
+      "principal": "backupsvc",
+      "role": "service",
+      "owner": "platform",
+      "allowed_hosts": "backup01",
+      "break_glass": "false"
+    },
+    {
+      "principal": "ops-admin",
+      "role": "admin",
+      "owner": "platform",
+      "allowed_hosts": "backup01",
+      "break_glass": "true"
+    },
+    {
+      "principal": "www-data",
+      "role": "web-worker",
+      "owner": "commerce",
+      "allowed_hosts": "web01",
+      "break_glass": "false"
+    }
+  ],
+  "network_paths": [
+    {
+      "src_zone": "dmz",
+      "dst_zone": "app",
+      "protocol": "8443",
+      "allowed": "true",
+      "purpose": "reverse-proxy"
+    },
+    {
+      "src_zone": "app",
+      "dst_zone": "data",
+      "protocol": "445",
+      "allowed": "true",
+      "purpose": "application-share"
+    },
+    {
+      "src_zone": "app",
+      "dst_zone": "external",
+      "protocol": "443",
+      "allowed": "true",
+      "purpose": "approved-api"
+    },
+    {
+      "src_zone": "data",
+      "dst_zone": "mgmt",
+      "protocol": "873",
+      "allowed": "true",
+      "purpose": "backup"
+    },
+    {
+      "src_zone": "dmz",
+      "dst_zone": "external",
+      "protocol": "443",
+      "allowed": "true",
+      "purpose": "web-egress"
+    }
+  ],
+  "classification": "# Evidence classification\nA finding is **confirmed** only when it meets its indicator-specific quorum and all linked records remain in the authorized time window after UTC normalization. A single source can establish a lead, but cannot establish a data-exposure finding. `failed`, `denied`, `healthcheck`, `backup`, and records without the required context are exclusions unless a rule explicitly says otherwise.\n",
+  "indicators": [
+    {
+      "candidate_id": "C-ACCESS-A",
+      "phase": "initial-access",
+      "required_kind": "token_use",
+      "required_context": "req-77",
+      "required_sources": "system|application",
+      "quorum": "2",
+      "predecessor": "",
+      "scope_rule": "authorized",
+      "branch": "trace-alpha",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "root",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "5"
+    },
+    {
+      "candidate_id": "C-ACCESS-B",
+      "phase": "initial-access",
+      "required_kind": "token_use",
+      "required_context": "req-66",
+      "required_sources": "system|application",
+      "quorum": "2",
+      "predecessor": "",
+      "scope_rule": "authorized",
+      "branch": "trace-backup",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "root",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "0"
+    },
+    {
+      "candidate_id": "C-EXEC-A",
+      "phase": "execution",
+      "required_kind": "process_start",
+      "required_context": "job-77",
+      "required_sources": "memory|system",
+      "quorum": "2",
+      "predecessor": "C-ACCESS-A",
+      "scope_rule": "authorized",
+      "branch": "trace-alpha",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "5"
+    },
+    {
+      "candidate_id": "C-EXEC-B",
+      "phase": "execution",
+      "required_kind": "process_start",
+      "required_context": "job-66",
+      "required_sources": "memory|system",
+      "quorum": "2",
+      "predecessor": "C-ACCESS-B",
+      "scope_rule": "authorized",
+      "branch": "trace-backup",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "0"
+    },
+    {
+      "candidate_id": "C-EXPORT-A",
+      "phase": "collection",
+      "required_kind": "export_complete",
+      "required_context": "req-77",
+      "required_sources": "application|hostfs",
+      "quorum": "2",
+      "predecessor": "C-EXEC-A",
+      "scope_rule": "authorized",
+      "branch": "trace-alpha",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "5"
+    },
+    {
+      "candidate_id": "C-EXPORT-B",
+      "phase": "collection",
+      "required_kind": "export_complete",
+      "required_context": "req-66",
+      "required_sources": "application|hostfs",
+      "quorum": "2",
+      "predecessor": "C-EXEC-B",
+      "scope_rule": "authorized",
+      "branch": "trace-backup",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "0"
+    },
+    {
+      "candidate_id": "C-STAGE-A",
+      "phase": "staging",
+      "required_kind": "archive_create",
+      "required_context": "req-77",
+      "required_sources": "application|hostfs",
+      "quorum": "2",
+      "predecessor": "C-EXPORT-A",
+      "scope_rule": "authorized",
+      "branch": "trace-alpha",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "5"
+    },
+    {
+      "candidate_id": "C-STAGE-B",
+      "phase": "staging",
+      "required_kind": "archive_create",
+      "required_context": "req-66",
+      "required_sources": "application|hostfs",
+      "quorum": "2",
+      "predecessor": "C-EXPORT-B",
+      "scope_rule": "authorized",
+      "branch": "trace-backup",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "0"
+    },
+    {
+      "candidate_id": "C-LATERAL-A",
+      "phase": "lateral-movement",
+      "required_kind": "smb_copy",
+      "required_context": "job-77",
+      "required_sources": "network|hostfs",
+      "quorum": "2",
+      "predecessor": "C-STAGE-A",
+      "scope_rule": "authorized",
+      "branch": "trace-alpha",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "5"
+    },
+    {
+      "candidate_id": "C-LATERAL-B",
+      "phase": "lateral-movement",
+      "required_kind": "smb_copy",
+      "required_context": "job-66",
+      "required_sources": "network|hostfs",
+      "quorum": "2",
+      "predecessor": "C-STAGE-B",
+      "scope_rule": "authorized",
+      "branch": "trace-backup",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "0"
+    },
+    {
+      "candidate_id": "C-EXFIL-A",
+      "phase": "exfiltration",
+      "required_kind": "tls_transfer",
+      "required_context": "job-77",
+      "required_sources": "network|application",
+      "quorum": "2",
+      "predecessor": "C-LATERAL-A",
+      "scope_rule": "authorized",
+      "branch": "trace-alpha",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "5"
+    },
+    {
+      "candidate_id": "C-EXFIL-B",
+      "phase": "exfiltration",
+      "required_kind": "tls_transfer",
+      "required_context": "job-66",
+      "required_sources": "network|application",
+      "quorum": "2",
+      "predecessor": "C-LATERAL-B",
+      "scope_rule": "authorized",
+      "branch": "trace-backup",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "0"
+    },
+    {
+      "candidate_id": "C-PERSIST-A",
+      "phase": "persistence",
+      "required_kind": "cron_create",
+      "required_context": "job-77",
+      "required_sources": "hostfs|system",
+      "quorum": "2",
+      "predecessor": "C-EXFIL-A",
+      "scope_rule": "authorized",
+      "branch": "trace-alpha",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "5"
+    },
+    {
+      "candidate_id": "C-PERSIST-B",
+      "phase": "persistence",
+      "required_kind": "cron_create",
+      "required_context": "job-66",
+      "required_sources": "hostfs|system",
+      "quorum": "2",
+      "predecessor": "C-EXFIL-B",
+      "scope_rule": "authorized",
+      "branch": "trace-backup",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "0"
+    },
+    {
+      "candidate_id": "C-IMPACT-A",
+      "phase": "impact",
+      "required_kind": "backup_job_disable",
+      "required_context": "job-77",
+      "required_sources": "application|system",
+      "quorum": "2",
+      "predecessor": "C-PERSIST-A",
+      "scope_rule": "authorized",
+      "branch": "trace-alpha",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "5"
+    },
+    {
+      "candidate_id": "C-IMPACT-B",
+      "phase": "impact",
+      "required_kind": "backup_job_disable",
+      "required_context": "job-66",
+      "required_sources": "application|system",
+      "quorum": "2",
+      "predecessor": "C-PERSIST-B",
+      "scope_rule": "authorized",
+      "branch": "trace-backup",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "0"
+    },
+    {
+      "candidate_id": "C-ACCESS-GAMMA",
+      "phase": "initial-access",
+      "required_kind": "token_use",
+      "required_context": "req-88",
+      "required_sources": "system|application",
+      "quorum": "2",
+      "predecessor": "",
+      "scope_rule": "authorized",
+      "branch": "trace-gamma",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "root",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "3"
+    },
+    {
+      "candidate_id": "C-EXEC-GAMMA",
+      "phase": "execution",
+      "required_kind": "process_start",
+      "required_context": "job-88",
+      "required_sources": "memory|system",
+      "quorum": "2",
+      "predecessor": "C-ACCESS-GAMMA",
+      "scope_rule": "authorized",
+      "branch": "trace-gamma",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "3"
+    },
+    {
+      "candidate_id": "C-EXPORT-GAMMA",
+      "phase": "collection",
+      "required_kind": "export_complete",
+      "required_context": "req-88",
+      "required_sources": "application|hostfs",
+      "quorum": "2",
+      "predecessor": "C-EXEC-GAMMA",
+      "scope_rule": "authorized",
+      "branch": "trace-gamma",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "3"
+    },
+    {
+      "candidate_id": "C-STAGE-GAMMA",
+      "phase": "staging",
+      "required_kind": "archive_create",
+      "required_context": "req-88",
+      "required_sources": "application|hostfs",
+      "quorum": "2",
+      "predecessor": "C-EXPORT-GAMMA",
+      "scope_rule": "authorized",
+      "branch": "trace-gamma",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "3"
+    },
+    {
+      "candidate_id": "C-LATERAL-GAMMA",
+      "phase": "lateral-movement",
+      "required_kind": "smb_copy",
+      "required_context": "job-88",
+      "required_sources": "network|hostfs",
+      "quorum": "2",
+      "predecessor": "C-STAGE-GAMMA",
+      "scope_rule": "authorized",
+      "branch": "trace-gamma",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "3"
+    },
+    {
+      "candidate_id": "C-EXFIL-GAMMA",
+      "phase": "exfiltration",
+      "required_kind": "tls_transfer",
+      "required_context": "job-88",
+      "required_sources": "network|application",
+      "quorum": "2",
+      "predecessor": "C-LATERAL-GAMMA",
+      "scope_rule": "authorized",
+      "branch": "trace-gamma",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "3"
+    },
+    {
+      "candidate_id": "C-PERSIST-GAMMA",
+      "phase": "persistence",
+      "required_kind": "cron_create",
+      "required_context": "job-88",
+      "required_sources": "hostfs|system",
+      "quorum": "2",
+      "predecessor": "C-EXFIL-GAMMA",
+      "scope_rule": "authorized",
+      "branch": "trace-gamma",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "3"
+    },
+    {
+      "candidate_id": "C-IMPACT-GAMMA",
+      "phase": "impact",
+      "required_kind": "backup_job_disable",
+      "required_context": "job-88",
+      "required_sources": "application|system",
+      "quorum": "2",
+      "predecessor": "C-PERSIST-GAMMA",
+      "scope_rule": "authorized",
+      "branch": "trace-gamma",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "3"
+    },
+    {
+      "candidate_id": "C-ACCESS-DELTA",
+      "phase": "initial-access",
+      "required_kind": "token_use",
+      "required_context": "req-99",
+      "required_sources": "system|application",
+      "quorum": "2",
+      "predecessor": "",
+      "scope_rule": "authorized",
+      "branch": "trace-delta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "root",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-EXEC-DELTA",
+      "phase": "execution",
+      "required_kind": "process_start",
+      "required_context": "job-99",
+      "required_sources": "memory|system",
+      "quorum": "2",
+      "predecessor": "C-ACCESS-DELTA",
+      "scope_rule": "authorized",
+      "branch": "trace-delta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-EXPORT-DELTA",
+      "phase": "collection",
+      "required_kind": "export_complete",
+      "required_context": "req-99",
+      "required_sources": "application|hostfs",
+      "quorum": "2",
+      "predecessor": "C-EXEC-DELTA",
+      "scope_rule": "authorized",
+      "branch": "trace-delta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-STAGE-DELTA",
+      "phase": "staging",
+      "required_kind": "archive_create",
+      "required_context": "req-99",
+      "required_sources": "application|hostfs",
+      "quorum": "2",
+      "predecessor": "C-EXPORT-DELTA",
+      "scope_rule": "authorized",
+      "branch": "trace-delta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-LATERAL-DELTA",
+      "phase": "lateral-movement",
+      "required_kind": "smb_copy",
+      "required_context": "job-99",
+      "required_sources": "network|hostfs",
+      "quorum": "2",
+      "predecessor": "C-STAGE-DELTA",
+      "scope_rule": "authorized",
+      "branch": "trace-delta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-EXFIL-DELTA",
+      "phase": "exfiltration",
+      "required_kind": "tls_transfer",
+      "required_context": "job-99",
+      "required_sources": "network|application",
+      "quorum": "2",
+      "predecessor": "C-LATERAL-DELTA",
+      "scope_rule": "authorized",
+      "branch": "trace-delta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-PERSIST-DELTA",
+      "phase": "persistence",
+      "required_kind": "cron_create",
+      "required_context": "job-99",
+      "required_sources": "hostfs|system",
+      "quorum": "2",
+      "predecessor": "C-EXFIL-DELTA",
+      "scope_rule": "authorized",
+      "branch": "trace-delta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-IMPACT-DELTA",
+      "phase": "impact",
+      "required_kind": "backup_job_disable",
+      "required_context": "job-99",
+      "required_sources": "application|system",
+      "quorum": "2",
+      "predecessor": "C-PERSIST-DELTA",
+      "scope_rule": "authorized",
+      "branch": "trace-delta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-ACCESS-EPSILON",
+      "phase": "initial-access",
+      "required_kind": "token_use",
+      "required_context": "req-101",
+      "required_sources": "system|application",
+      "quorum": "2",
+      "predecessor": "",
+      "scope_rule": "authorized",
+      "branch": "trace-epsilon",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "root",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-EXEC-EPSILON",
+      "phase": "execution",
+      "required_kind": "process_start",
+      "required_context": "job-101",
+      "required_sources": "memory|system",
+      "quorum": "2",
+      "predecessor": "C-ACCESS-EPSILON",
+      "scope_rule": "authorized",
+      "branch": "trace-epsilon",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-EXPORT-EPSILON",
+      "phase": "collection",
+      "required_kind": "export_complete",
+      "required_context": "req-101",
+      "required_sources": "application|hostfs",
+      "quorum": "2",
+      "predecessor": "C-EXEC-EPSILON",
+      "scope_rule": "authorized",
+      "branch": "trace-epsilon",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-STAGE-EPSILON",
+      "phase": "staging",
+      "required_kind": "archive_create",
+      "required_context": "req-101",
+      "required_sources": "application|hostfs",
+      "quorum": "2",
+      "predecessor": "C-EXPORT-EPSILON",
+      "scope_rule": "authorized",
+      "branch": "trace-epsilon",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-LATERAL-EPSILON",
+      "phase": "lateral-movement",
+      "required_kind": "smb_copy",
+      "required_context": "job-101",
+      "required_sources": "network|hostfs",
+      "quorum": "2",
+      "predecessor": "C-STAGE-EPSILON",
+      "scope_rule": "authorized",
+      "branch": "trace-epsilon",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-EXFIL-EPSILON",
+      "phase": "exfiltration",
+      "required_kind": "tls_transfer",
+      "required_context": "job-101",
+      "required_sources": "network|application",
+      "quorum": "2",
+      "predecessor": "C-LATERAL-EPSILON",
+      "scope_rule": "authorized",
+      "branch": "trace-epsilon",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-PERSIST-EPSILON",
+      "phase": "persistence",
+      "required_kind": "cron_create",
+      "required_context": "job-101",
+      "required_sources": "hostfs|system",
+      "quorum": "2",
+      "predecessor": "C-EXFIL-EPSILON",
+      "scope_rule": "authorized",
+      "branch": "trace-epsilon",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-IMPACT-EPSILON",
+      "phase": "impact",
+      "required_kind": "backup_job_disable",
+      "required_context": "job-101",
+      "required_sources": "application|system",
+      "quorum": "2",
+      "predecessor": "C-PERSIST-EPSILON",
+      "scope_rule": "authorized",
+      "branch": "trace-epsilon",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "1"
+    },
+    {
+      "candidate_id": "C-ACCESS-ZETA",
+      "phase": "initial-access",
+      "required_kind": "token_use",
+      "required_context": "req-102",
+      "required_sources": "system|application",
+      "quorum": "2",
+      "predecessor": "",
+      "scope_rule": "authorized",
+      "branch": "trace-zeta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "root",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "4"
+    },
+    {
+      "candidate_id": "C-EXEC-ZETA",
+      "phase": "execution",
+      "required_kind": "process_start",
+      "required_context": "job-102",
+      "required_sources": "memory|system",
+      "quorum": "2",
+      "predecessor": "C-ACCESS-ZETA",
+      "scope_rule": "authorized",
+      "branch": "trace-zeta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "4"
+    },
+    {
+      "candidate_id": "C-EXPORT-ZETA",
+      "phase": "collection",
+      "required_kind": "export_complete",
+      "required_context": "req-102",
+      "required_sources": "application|hostfs",
+      "quorum": "2",
+      "predecessor": "C-EXEC-ZETA",
+      "scope_rule": "authorized",
+      "branch": "trace-zeta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "4"
+    },
+    {
+      "candidate_id": "C-STAGE-ZETA",
+      "phase": "staging",
+      "required_kind": "archive_create",
+      "required_context": "req-102",
+      "required_sources": "application|hostfs",
+      "quorum": "2",
+      "predecessor": "C-EXPORT-ZETA",
+      "scope_rule": "authorized",
+      "branch": "trace-zeta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "4"
+    },
+    {
+      "candidate_id": "C-LATERAL-ZETA",
+      "phase": "lateral-movement",
+      "required_kind": "smb_copy",
+      "required_context": "job-102",
+      "required_sources": "network|hostfs",
+      "quorum": "2",
+      "predecessor": "C-STAGE-ZETA",
+      "scope_rule": "authorized",
+      "branch": "trace-zeta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "4"
+    },
+    {
+      "candidate_id": "C-EXFIL-ZETA",
+      "phase": "exfiltration",
+      "required_kind": "tls_transfer",
+      "required_context": "job-102",
+      "required_sources": "network|application",
+      "quorum": "2",
+      "predecessor": "C-LATERAL-ZETA",
+      "scope_rule": "authorized",
+      "branch": "trace-zeta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "4"
+    },
+    {
+      "candidate_id": "C-PERSIST-ZETA",
+      "phase": "persistence",
+      "required_kind": "cron_create",
+      "required_context": "job-102",
+      "required_sources": "hostfs|system",
+      "quorum": "2",
+      "predecessor": "C-EXFIL-ZETA",
+      "scope_rule": "authorized",
+      "branch": "trace-zeta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "4"
+    },
+    {
+      "candidate_id": "C-IMPACT-ZETA",
+      "phase": "impact",
+      "required_kind": "backup_job_disable",
+      "required_context": "job-102",
+      "required_sources": "application|system",
+      "quorum": "2",
+      "predecessor": "C-PERSIST-ZETA",
+      "scope_rule": "authorized",
+      "branch": "trace-zeta",
+      "join_keys": "trace_id|principal|peer|context",
+      "max_gap_seconds": "900",
+      "lineage_mode": "linked",
+      "required_attributes": "causal=true|integrity=sealed",
+      "forbidden_attributes": "direction=inbound|authorization_basis=denied",
+      "transition_policy": "configured",
+      "quality_weight": "4"
+    }
+  ],
+  "business_constraints": "# Operational constraints\nThe payment service must retain read-only availability while web01 is isolated. No original evidence may be altered. Emergency containment must complete in 30 minutes. The last known usable backup must be within a four-hour RPO. `svc-report` cannot be disabled until the incident commander and identity owner both approve. Restoration cannot begin before immutable preservation and egress containment complete.\n\nA root observation may authorize descendants only through an explicit configured principal/host transition. A complete path is selected globally, not greedily per phase.\n",
+  "event_schema": {
+    "required_event_fields": [
+      "event_id",
+      "source",
+      "clock_segment",
+      "observed_at",
+      "host",
+      "kind",
+      "context",
+      "status",
+      "trace_id",
+      "causal",
+      "confidence",
+      "integrity",
+      "operation",
+      "direction"
+    ],
+    "normalization": "utc_time = observed_at + correction_seconds; joins are field-based and order-independent",
+    "contextual_join_keys": [
+      "context",
+      "host",
+      "principal",
+      "peer",
+      "parent_event_id",
+      "trace_id",
+      "session_id",
+      "artifact",
+      "operation"
+    ],
+    "record_order": "not evidence of chronology"
+  },
+  "action_catalog": [
+    {
+      "action_id": "A-PRESERVE",
+      "action": "preserve_evidence",
+      "target": "all",
+      "minutes": "4",
+      "requires": "",
+      "approval": "ir_lead",
+      "rollback": "retain-immutable-copy",
+      "provides": "evidence_preserved",
+      "conflicts": "",
+      "resource": "all",
+      "risk": "forensics",
+      "scenarios": "SCN-NETWORK|SCN-FORENSICS|SCN-CONTINUITY",
+      "evidence_effect": "preserve"
+    },
+    {
+      "action_id": "A-ISOLATE",
+      "action": "isolate_host",
+      "target": "web01",
+      "minutes": "3",
+      "requires": "A-PRESERVE",
+      "approval": "endpoint_owner",
+      "rollback": "reconnect-after-rebuild",
+      "provides": "web_isolated",
+      "conflicts": "",
+      "resource": "web01",
+      "risk": "containment",
+      "scenarios": "SCN-NETWORK|SCN-FORENSICS|SCN-CONTINUITY",
+      "evidence_effect": "derived-only"
+    },
+    {
+      "action_id": "A-BLOCK",
+      "action": "block_egress",
+      "target": "198.51.100.77",
+      "minutes": "2",
+      "requires": "A-PRESERVE",
+      "approval": "incident_commander",
+      "rollback": "remove-block-after-eradication",
+      "provides": "egress_blocked",
+      "conflicts": "",
+      "resource": "198.51.100.77",
+      "risk": "containment",
+      "scenarios": "SCN-NETWORK|SCN-FORENSICS|SCN-CONTINUITY",
+      "evidence_effect": "derived-only"
+    },
+    {
+      "action_id": "A-DISABLE",
+      "action": "disable_principal",
+      "target": "svc-report",
+      "minutes": "2",
+      "requires": "A-BLOCK",
+      "approval": "identity_owner",
+      "rollback": "re-enable-after-rotation",
+      "provides": "principal_disabled",
+      "conflicts": "",
+      "resource": "svc-report",
+      "risk": "containment",
+      "scenarios": "SCN-NETWORK|SCN-FORENSICS|SCN-CONTINUITY",
+      "evidence_effect": "derived-only"
+    },
+    {
+      "action_id": "A-STOP",
+      "action": "stop_process",
+      "target": "web01",
+      "minutes": "2",
+      "requires": "A-PRESERVE",
+      "approval": "endpoint_owner",
+      "rollback": "restart-approved-image",
+      "provides": "process_stopped",
+      "conflicts": "",
+      "resource": "web01",
+      "risk": "containment",
+      "scenarios": "SCN-NETWORK|SCN-FORENSICS|SCN-CONTINUITY",
+      "evidence_effect": "derived-only"
+    },
+    {
+      "action_id": "A-CAPTURE",
+      "action": "capture_logical_image",
+      "target": "app01",
+      "minutes": "4",
+      "requires": "A-PRESERVE",
+      "approval": "ir_lead",
+      "rollback": "retain-derived-copy",
+      "provides": "app_capture_complete",
+      "conflicts": "",
+      "resource": "app01",
+      "risk": "forensics",
+      "scenarios": "SCN-NETWORK|SCN-FORENSICS|SCN-CONTINUITY",
+      "evidence_effect": "preserve"
+    },
+    {
+      "action_id": "A-RESTORE-APP",
+      "action": "restore_from_backup",
+      "target": "app01",
+      "minutes": "5",
+      "requires": "A-PRESERVE|A-BLOCK|A-CAPTURE",
+      "approval": "service_owner",
+      "rollback": "revert-preserved-snapshot",
+      "provides": "app_restored",
+      "conflicts": "",
+      "resource": "app01",
+      "risk": "containment",
+      "scenarios": "SCN-NETWORK|SCN-FORENSICS|SCN-CONTINUITY",
+      "evidence_effect": "derived-only"
+    },
+    {
+      "action_id": "A-RESTORE-FILES",
+      "action": "restore_from_backup",
+      "target": "files01",
+      "minutes": "4",
+      "requires": "A-PRESERVE|A-BLOCK",
+      "approval": "service_owner",
+      "rollback": "revert-preserved-snapshot",
+      "provides": "files_restored",
+      "conflicts": "",
+      "resource": "files01",
+      "risk": "containment",
+      "scenarios": "SCN-NETWORK|SCN-FORENSICS|SCN-CONTINUITY",
+      "evidence_effect": "derived-only"
+    },
+    {
+      "action_id": "A-ROTATE",
+      "action": "rotate_service_token",
+      "target": "svc-report",
+      "minutes": "2",
+      "requires": "A-DISABLE",
+      "approval": "identity_owner",
+      "rollback": "revoke-new-token-after-review",
+      "provides": "token_rotated",
+      "conflicts": "",
+      "resource": "svc-report",
+      "risk": "containment",
+      "scenarios": "SCN-NETWORK|SCN-FORENSICS|SCN-CONTINUITY",
+      "evidence_effect": "derived-only"
+    },
+    {
+      "action_id": "A-REMOVE-CRON",
+      "action": "remove_persistence",
+      "target": "web01",
+      "minutes": "2",
+      "requires": "A-PRESERVE",
+      "approval": "endpoint_owner",
+      "rollback": "restore-quarantined-copy",
+      "provides": "persistence_removed",
+      "conflicts": "",
+      "resource": "web01",
+      "risk": "containment",
+      "scenarios": "SCN-NETWORK|SCN-FORENSICS|SCN-CONTINUITY",
+      "evidence_effect": "derived-only"
+    },
+    {
+      "action_id": "A-REBOOT",
+      "action": "reboot_host",
+      "target": "web01",
+      "minutes": "15",
+      "requires": "A-PRESERVE",
+      "approval": "endpoint_owner",
+      "rollback": "manual-recovery",
+      "provides": "rebooted",
+      "conflicts": "web_isolated",
+      "resource": "web01",
+      "risk": "containment",
+      "scenarios": "SCN-NETWORK|SCN-FORENSICS|SCN-CONTINUITY",
+      "evidence_effect": "derived-only"
+    },
+    {
+      "action_id": "A-DELETE",
+      "action": "delete_artifacts",
+      "target": "web01",
+      "minutes": "1",
+      "requires": "",
+      "approval": "endpoint_owner",
+      "rollback": "none",
+      "provides": "",
+      "conflicts": "evidence_preserved",
+      "resource": "web01",
+      "risk": "containment",
+      "scenarios": "SCN-NETWORK|SCN-FORENSICS|SCN-CONTINUITY",
+      "evidence_effect": "derived-only"
+    }
+  ],
+  "optimization": {
+    "required_actions": [
+      "A-PRESERVE",
+      "A-ISOLATE",
+      "A-BLOCK",
+      "A-DISABLE",
+      "A-STOP",
+      "A-CAPTURE",
+      "A-RESTORE-APP",
+      "A-RESTORE-FILES",
+      "A-ROTATE",
+      "A-REMOVE-CRON"
+    ],
+    "max_minutes": 30,
+    "required_capabilities": [
+      "evidence_preserved",
+      "web_isolated",
+      "egress_blocked",
+      "principal_disabled",
+      "process_stopped",
+      "app_capture_complete",
+      "app_restored",
+      "files_restored",
+      "token_rotated",
+      "persistence_removed"
+    ],
+    "forbidden_actions": [
+      "A-DELETE",
+      "A-REBOOT"
+    ],
+    "ordering": [
+      [
+        "A-PRESERVE",
+        "A-ISOLATE"
+      ],
+      [
+        "A-PRESERVE",
+        "A-BLOCK"
+      ],
+      [
+        "A-BLOCK",
+        "A-DISABLE"
+      ],
+      [
+        "A-PRESERVE",
+        "A-CAPTURE"
+      ],
+      [
+        "A-CAPTURE",
+        "A-RESTORE-APP"
+      ],
+      [
+        "A-BLOCK",
+        "A-RESTORE-APP"
+      ],
+      [
+        "A-DISABLE",
+        "A-ROTATE"
+      ],
+      [
+        "A-CAPTURE",
+        "A-ROTATE"
+      ],
+      [
+        "A-REMOVE-CRON",
+        "A-RESTORE-APP"
+      ],
+      [
+        "A-RESTORE-FILES",
+        "A-ROTATE"
+      ]
+    ]
+  },
+  "resilience": {
+    "scenarios": [
+      {
+        "id": "SCN-NETWORK",
+        "unavailable": [
+          "A-REBOOT"
+        ]
+      },
+      {
+        "id": "SCN-FORENSICS",
+        "forbidden": [
+          "A-DELETE"
+        ]
+      },
+      {
+        "id": "SCN-CONTINUITY",
+        "must_preserve": [
+          "A-RESTORE-APP",
+          "A-RESTORE-FILES"
+        ]
+      }
+    ],
+    "plan_requirement": "the submitted action set must satisfy every scenario"
+  },
+  "clock_sync": [
+    {
+      "source": "application",
+      "clock_segment": "app-a",
+      "pulse_id": "P-APP-1",
+      "observed_at": "2026-06-17T08:02:15Z",
+      "utc_at": "2026-06-17T08:03:00Z",
+      "confidence": "high"
+    },
+    {
+      "source": "application",
+      "clock_segment": "app-a",
+      "pulse_id": "P-APP-2",
+      "observed_at": "2026-06-17T09:02:15Z",
+      "utc_at": "2026-06-17T09:03:00Z",
+      "confidence": "high"
+    },
+    {
+      "source": "hostfs",
+      "clock_segment": "fs-a",
+      "pulse_id": "P-FS-1",
+      "observed_at": "2026-06-17T08:04:30Z",
+      "utc_at": "2026-06-17T08:03:00Z",
+      "confidence": "high"
+    },
+    {
+      "source": "hostfs",
+      "clock_segment": "fs-a",
+      "pulse_id": "P-FS-2",
+      "observed_at": "2026-06-17T09:04:30Z",
+      "utc_at": "2026-06-17T09:03:00Z",
+      "confidence": "high"
+    },
+    {
+      "source": "memory",
+      "clock_segment": "mem-a",
+      "pulse_id": "P-MEM-1",
+      "observed_at": "2026-06-17T08:05:00Z",
+      "utc_at": "2026-06-17T08:03:00Z",
+      "confidence": "high"
+    },
+    {
+      "source": "memory",
+      "clock_segment": "mem-a",
+      "pulse_id": "P-MEM-2",
+      "observed_at": "2026-06-17T09:05:00Z",
+      "utc_at": "2026-06-17T09:03:00Z",
+      "confidence": "high"
+    },
+    {
+      "source": "network",
+      "clock_segment": "net-a",
+      "pulse_id": "P-NET-1",
+      "observed_at": "2026-06-17T08:03:00Z",
+      "utc_at": "2026-06-17T08:03:00Z",
+      "confidence": "high"
+    },
+    {
+      "source": "network",
+      "clock_segment": "net-a",
+      "pulse_id": "P-NET-2",
+      "observed_at": "2026-06-17T09:03:00Z",
+      "utc_at": "2026-06-17T09:03:00Z",
+      "confidence": "high"
+    },
+    {
+      "source": "system",
+      "clock_segment": "sys-a",
+      "pulse_id": "P-SYS-1",
+      "observed_at": "2026-06-17T08:02:30Z",
+      "utc_at": "2026-06-17T08:03:00Z",
+      "confidence": "high"
+    },
+    {
+      "source": "system",
+      "clock_segment": "sys-a",
+      "pulse_id": "P-SYS-2",
+      "observed_at": "2026-06-17T09:02:30Z",
+      "utc_at": "2026-06-17T09:03:00Z",
+      "confidence": "high"
+    }
+  ],
+  "change_windows": [
+    {
+      "window_id": "CW-1",
+      "start_utc": "2026-06-17T07:00:00Z",
+      "end_utc": "2026-06-17T07:30:00Z",
+      "service": "web01",
+      "change": "certificate-renewal",
+      "approved": "true"
+    },
+    {
+      "window_id": "CW-2",
+      "start_utc": "2026-06-17T10:00:00Z",
+      "end_utc": "2026-06-17T10:30:00Z",
+      "service": "app01",
+      "change": "maintenance",
+      "approved": "true"
+    }
+  ],
+  "evidence_manifest": [
+    {
+      "filename": "evidence/application.jsonl",
+      "source": "application",
+      "record_count": 434,
+      "write_protected": true
+    },
+    {
+      "filename": "evidence/hostfs.jsonl",
+      "source": "hostfs",
+      "record_count": 419,
+      "write_protected": true
+    },
+    {
+      "filename": "evidence/memory.jsonl",
+      "source": "memory",
+      "record_count": 383,
+      "write_protected": true
+    },
+    {
+      "filename": "evidence/network.jsonl",
+      "source": "network",
+      "record_count": 395,
+      "write_protected": true
+    },
+    {
+      "filename": "evidence/system.jsonl",
+      "source": "system",
+      "record_count": 417,
+      "write_protected": true
+    }
+  ],
+  "lineage_policy": {
+    "max_parent_gap_seconds": 900,
+    "require_parent_for_linked": true,
+    "require_causal_link": true,
+    "root_authorization": "identity-and-host",
+    "allowed_principal_transitions": [
+      {
+        "from": "svc-report",
+        "to": "www-data",
+        "via_kind": "process_start"
+      },
+      {
+        "from": "www-data",
+        "to": "root",
+        "via_kind": "cron_create"
+      },
+      {
+        "from": "svc-report",
+        "to": "root",
+        "via_kind": "cron_create"
+      },
+      {
+        "from": "backupsvc",
+        "to": "ops-admin",
+        "via_kind": "backup_job_disable"
+      }
+    ],
+    "allowed_host_transitions": [
+      {
+        "from": "app01",
+        "to": "web01",
+        "via_kind": "process_start"
+      },
+      {
+        "from": "app01",
+        "to": "files01",
+        "via_kind": "smb_copy"
+      },
+      {
+        "from": "files01",
+        "to": "app01",
+        "via_kind": "tls_transfer"
+      },
+      {
+        "from": "web01",
+        "to": "app01",
+        "via_kind": "backup_job_disable"
+      }
+    ],
+    "context_families": [
+      {
+        "family": "trace-alpha",
+        "contexts": [
+          "req-77",
+          "job-77"
+        ],
+        "root": "req-77"
+      },
+      {
+        "family": "trace-backup",
+        "contexts": [
+          "req-66",
+          "job-66"
+        ],
+        "root": "req-66"
+      },
+      {
+        "family": "trace-gamma",
+        "contexts": [
+          "req-88",
+          "job-88"
+        ],
+        "root": "req-88"
+      },
+      {
+        "family": "trace-delta",
+        "contexts": [
+          "req-99",
+          "job-99"
+        ],
+        "root": "req-99"
+      },
+      {
+        "family": "trace-epsilon",
+        "contexts": [
+          "req-101",
+          "job-101"
+        ],
+        "root": "req-101"
+      },
+      {
+        "family": "trace-zeta",
+        "contexts": [
+          "req-102",
+          "job-102"
+        ],
+        "root": "req-102"
+      }
+    ]
+  },
+  "arbitration": {
+    "complete_chain_required": true,
+    "score_dimensions": [
+      "quality",
+      "lineage_continuity",
+      "source_diversity",
+      "integrity",
+      "impact_bytes",
+      "earliest_completion"
+    ],
+    "preferred_branches": [
+      "trace-alpha",
+      "trace-zeta",
+      "trace-gamma",
+      "trace-epsilon"
+    ],
+    "tie_policy": "reject-ambiguous",
+    "candidate_limit_per_indicator": 64
+  },
+  "manifest_policy": {
+    "count_mode": "nonempty-lines",
+    "duplicate_mode": "identical-observation",
+    "source_must_match_file": true,
+    "input_read_only": true
+  }
+}
